@@ -52,6 +52,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
@@ -180,6 +181,8 @@ public class DTLSConnector implements Connector {
 
 	private ErrorHandler errorHandler;
 	private SessionListener sessionCacheSynchronization;
+	private ExecutorService handshakerTaskExecutor;
+	private boolean hasInternalHandshakeTaskExecutor;
 
 	/**
 	 * Creates a DTLS connector from a given configuration object
@@ -223,6 +226,11 @@ public class DTLSConnector implements Connector {
 			this.connectionStore = connectionStore;
 			this.sessionCacheSynchronization = (SessionListener) this.connectionStore;
 		}
+	}
+
+	public void setHandshakeTaskExecutor(ExecutorService executor) {
+
+		this.handshakerTaskExecutor = executor;
 	}
 
 	/**
@@ -286,6 +294,12 @@ public class DTLSConnector implements Connector {
 				return ret;
 			}
 		});
+		if (handshakerTaskExecutor == null) {
+			handshakerTaskExecutor = Executors.newFixedThreadPool(
+					Runtime.getRuntime().availableProcessors(),
+					new DaemonThreadFactory("DTLS Handshaker Task", SCANDIUM_THREAD_GROUP));
+			this.hasInternalHandshakeTaskExecutor = true;
+		}
 		socket = new DatagramSocket(null);
 		// make it easier to stop/start a server consecutively without delays
 		socket.setReuseAddress(true);
@@ -392,6 +406,10 @@ public class DTLSConnector implements Connector {
 		if (running.get()) {
 			LOGGER.log(Level.INFO, "Stopping DTLS connector on [{0}]", lastBindAddress);
 			timer.shutdownNow();
+			if (hasInternalHandshakeTaskExecutor) {
+				handshakerTaskExecutor.shutdownNow();
+				hasInternalHandshakeTaskExecutor = false;
+			}
 			releaseSocket();
 		}
 	}
@@ -413,6 +431,7 @@ public class DTLSConnector implements Connector {
 	}
 
 	private void receiveNextDatagramFromNetwork() throws IOException {
+
 		byte[] buffer = new byte[inboundDatagramBufferSize];
 		DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 		synchronized (socket) {
