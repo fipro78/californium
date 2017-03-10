@@ -58,6 +58,7 @@ import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
+import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.scandium.auth.X509CertPath;
@@ -129,7 +130,7 @@ public class DTLSConnectorTest {
 
 		handshakeTaskExecutor = Executors.newFixedThreadPool(
 				Runtime.getRuntime().availableProcessors(),
-				new DaemonThreadFactory("DTLS Handshaker Task", DTLSConnector.SCANDIUM_THREAD_GROUP));
+				new DaemonThreadFactory("DTLS Handshaker Task", NamedThreadFactory.SCANDIUM_THREAD_GROUP));
 		// load the key store
 
 		serverRawDataProcessor = new MessageCapturingProcessor();
